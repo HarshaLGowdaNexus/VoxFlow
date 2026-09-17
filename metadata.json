@@ -1,0 +1,6 @@
+{
+  "name": "VoxFlow Desktop Dictation",
+  "description": "Windows desktop dictation utility featuring system tray popup, preferences settings, transcript archive, and brand design system assets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
