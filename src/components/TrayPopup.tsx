@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Mic,
   MicOff,
@@ -29,68 +29,115 @@ interface TrayPopupProps {
 export const TrayPopup: React.FC<TrayPopupProps> = ({ onNavigate }) => {
   const [engineState, setEngineState] = useState<TrayEngineState>('idle');
   const [activeTab, setActiveTab] = useState<'dictate' | 'notes' | 'snippets' | 'live'>('dictate');
-  const [showErrorToast, setShowErrorToast] = useState(true);
-  const [showSuccessToast, setShowSuccessToast] = useState(true);
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [hotkey, setHotkey] = useState('CommandOrControl+Shift+Space');
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.getSettings().then((s: any) => setHotkey(s.hotkey || 'CommandOrControl+Shift+Space'));
+      window.electronAPI.getState().then(setEngineState);
+      window.electronAPI.onStateChanged((state) => {
+        setEngineState(state);
+      });
+
+      let recorder: MediaRecorder | null = null;
+      let chunks: Blob[] = [];
+
+      window.electronAPI.onStartRecording(async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+          chunks = [];
+          recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunks.push(e.data);
+          };
+          recorder.onstop = async () => {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            const arrayBuffer = await blob.arrayBuffer();
+            if (window.electronAPI) {
+              await window.electronAPI.saveAudio(arrayBuffer);
+            }
+            stream.getTracks().forEach(track => track.stop());
+          };
+          recorder.start();
+        } catch (e) {
+          console.error('Failed to start recording:', e);
+          setShowErrorToast(true);
+        }
+      });
+
+      window.electronAPI.onStopRecording(() => {
+        if (recorder && recorder.state !== 'inactive') {
+          recorder.stop();
+        }
+      });
+
+      return () => window.electronAPI.removeStateListener();
+    }
+  }, []);
 
   return (
     <div className="w-full flex flex-col items-center justify-start py-6 px-4 selection:bg-[#5B8CFF]/30">
-      {/* State Switcher Controller (For Reviewer/Developer testing of all 3 states) */}
-      <section className="w-full max-w-[420px] mb-3 bg-[#1B1B1D] rounded-xl p-1.5 flex items-center justify-between gap-1 shadow-md border border-[#2A2A2E]">
-        <span className="text-[11px] text-[#8D909F] px-2 flex items-center gap-1.5 font-medium">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#5B8CFF] animate-ping" />
-          State Preview:
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setEngineState('idle')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all duration-150 flex items-center gap-1.5 ${
-              engineState === 'idle'
-                ? 'bg-[#5B8CFF] text-[#001847] font-semibold shadow-sm'
-                : 'text-[#C3C6D6] hover:text-white hover:bg-[#201F21]'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                engineState === 'idle' ? 'bg-[#001847]' : 'bg-[#77DAA4]'
+      {/* State Switcher Controller (Hidden for Prod, used for testing) */}
+      {!window.electronAPI && (
+        <section className="w-full max-w-[420px] mb-3 bg-[#1B1B1D] rounded-xl p-1.5 flex items-center justify-between gap-1 shadow-md border border-[#2A2A2E]">
+          <span className="text-[11px] text-[#8D909F] px-2 flex items-center gap-1.5 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#5B8CFF] animate-ping" />
+            State Preview:
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setEngineState('idle')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all duration-150 flex items-center gap-1.5 ${
+                engineState === 'idle'
+                  ? 'bg-[#5B8CFF] text-[#001847] font-semibold shadow-sm'
+                  : 'text-[#C3C6D6] hover:text-white hover:bg-[#201F21]'
               }`}
-            />
-            Idle
-          </button>
-          <button
-            type="button"
-            onClick={() => setEngineState('recording')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all duration-150 flex items-center gap-1.5 ${
-              engineState === 'recording'
-                ? 'bg-[#5B8CFF] text-[#001847] font-semibold shadow-sm'
-                : 'text-[#C3C6D6] hover:text-white hover:bg-[#201F21]'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                engineState === 'recording' ? 'bg-[#001847] animate-ping' : 'bg-[#5B8CFF]'
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  engineState === 'idle' ? 'bg-[#001847]' : 'bg-[#77DAA4]'
+                }`}
+              />
+              Idle
+            </button>
+            <button
+              type="button"
+              onClick={() => setEngineState('recording')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all duration-150 flex items-center gap-1.5 ${
+                engineState === 'recording'
+                  ? 'bg-[#5B8CFF] text-[#001847] font-semibold shadow-sm'
+                  : 'text-[#C3C6D6] hover:text-white hover:bg-[#201F21]'
               }`}
-            />
-            Recording
-          </button>
-          <button
-            type="button"
-            onClick={() => setEngineState('processing')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all duration-150 flex items-center gap-1.5 ${
-              engineState === 'processing'
-                ? 'bg-[#F7BD4F] text-[#392600] font-semibold shadow-sm'
-                : 'text-[#C3C6D6] hover:text-white hover:bg-[#201F21]'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                engineState === 'processing' ? 'bg-[#392600]' : 'bg-[#F7BD4F]'
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  engineState === 'recording' ? 'bg-[#001847] animate-ping' : 'bg-[#5B8CFF]'
+                }`}
+              />
+              Recording
+            </button>
+            <button
+              type="button"
+              onClick={() => setEngineState('processing')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all duration-150 flex items-center gap-1.5 ${
+                engineState === 'processing'
+                  ? 'bg-[#F7BD4F] text-[#392600] font-semibold shadow-sm'
+                  : 'text-[#C3C6D6] hover:text-white hover:bg-[#201F21]'
               }`}
-            />
-            Processing
-          </button>
-        </div>
-      </section>
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  engineState === 'processing' ? 'bg-[#392600]' : 'bg-[#F7BD4F]'
+                }`}
+              />
+              Processing
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Main Tray Utility Window Frame */}
       <div className="w-full max-w-[420px] bg-[#1B1B1D] rounded-xl overflow-hidden shadow-2xl border border-[#2A2A2E] flex flex-col">
@@ -244,13 +291,13 @@ export const TrayPopup: React.FC<TrayPopupProps> = ({ onNavigate }) => {
               <div className="flex flex-col gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setEngineState('recording')}
+                  onClick={() => window.electronAPI ? window.electronAPI.toggleRecording() : setEngineState('recording')}
                   className="w-full h-11 rounded-xl bg-[#5B8CFF] hover:bg-[#5B8CFF]/90 active:scale-[0.99] text-[#001847] font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-md"
                 >
                   <Mic size={16} />
                   <span>Start Dictation</span>
                   <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#001847]/15 text-[#001847]">
-                    Win+Alt+Space
+                    {hotkey.replace('CommandOrControl', 'Ctrl')}
                   </span>
                 </button>
 
@@ -343,7 +390,7 @@ export const TrayPopup: React.FC<TrayPopupProps> = ({ onNavigate }) => {
               {/* Stop & Inject CTA */}
               <button
                 type="button"
-                onClick={() => setEngineState('processing')}
+                onClick={() => window.electronAPI ? window.electronAPI.toggleRecording() : setEngineState('processing')}
                 className="w-full h-11 rounded-xl bg-[#E8544E] hover:bg-[#E8544E]/90 active:scale-[0.99] text-white font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-md"
               >
                 <Square size={14} className="fill-current" />
@@ -409,17 +456,14 @@ export const TrayPopup: React.FC<TrayPopupProps> = ({ onNavigate }) => {
             <Keyboard size={13} className="text-[#8D909F]" />
             <span className="text-[11px] text-[#8D909F]">Hotkey:</span>
             <div className="flex items-center gap-1">
-              <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#2A2A2C] text-[#E5E1E4] border border-[#434653]/30">
-                Win
-              </kbd>
-              <span className="text-[#8D909F] text-xs">+</span>
-              <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#2A2A2C] text-[#E5E1E4] border border-[#434653]/30">
-                Alt
-              </kbd>
-              <span className="text-[#8D909F] text-xs">+</span>
-              <kbd className="font-mono text-[10px] px-2 py-0.5 rounded bg-[#2A2A2C] text-[#E5E1E4] border border-[#434653]/30">
-                Space
-              </kbd>
+              {hotkey.replace('CommandOrControl', 'Ctrl').split('+').map((key, i, arr) => (
+                <React.Fragment key={i}>
+                  <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#2A2A2C] text-[#E5E1E4] border border-[#434653]/30">
+                    {key}
+                  </kbd>
+                  {i < arr.length - 1 && <span className="text-[#8D909F] text-xs">+</span>}
+                </React.Fragment>
+              ))}
             </div>
           </div>
           <div className="flex items-center gap-1 text-[#77DAA4]">

@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+python/
+dist-electron/
+dist-electron-build/
+asar-temp/
+*.cjs
+*.py
+*.wav 

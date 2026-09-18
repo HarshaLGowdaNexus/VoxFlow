@@ -37,6 +37,36 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
   const [appliedFeedback, setAppliedFeedback] = useState(false);
   const [meterLevel, setMeterLevel] = useState(7);
 
+  // Settings state
+  const [hotkey, setHotkey] = useState('CommandOrControl+Shift+Space');
+  const [micDevice, setMicDevice] = useState('default');
+  const [ollamaModel, setOllamaModel] = useState('llama3');
+  const [ollamaModelsList, setOllamaModelsList] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.getSettings().then((s: any) => {
+        setHotkey(s.hotkey || 'CommandOrControl+Shift+Space');
+        setMicDevice(s.micDevice || 'default');
+        setSelectedModel(s.whisperModel || 'small.en');
+        setOllamaModel(s.ollamaModel || 'llama3');
+      });
+      window.electronAPI.getOllamaModels().then((models: string[]) => {
+        setOllamaModelsList(models);
+      });
+    }
+  }, []);
+
+  const updateSetting = (key: string, value: any) => {
+    if (window.electronAPI) {
+      window.electronAPI.setSetting(key, value);
+    }
+    if (key === 'hotkey') setHotkey(value);
+    if (key === 'micDevice') setMicDevice(value);
+    if (key === 'whisperModel') setSelectedModel(value);
+    if (key === 'ollamaModel') setOllamaModel(value);
+  };
+
   // Simulated mic meter animation when testing
   useEffect(() => {
     if (!isTestingMic) {
@@ -223,7 +253,7 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                   <Keyboard size={15} />
                   <span>Hotkeys</span>
                 </div>
-                <span className="font-mono text-[11px] text-[#5B8CFF]/80">Win+Alt</span>
+                <span className="font-mono text-[11px] text-[#5B8CFF]/80">{hotkey.replace('CommandOrControl', 'Ctrl')}</span>
               </button>
 
               <button
@@ -293,6 +323,7 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
             {/* Sections Container */}
             <div className="lg:col-span-9 flex flex-col gap-6">
               {/* SECTION 1: Hotkeys & Global Trigger */}
+              {activeTab === 'hotkey-panel' && (
               <section className="flex flex-col bg-[#1B1B1D] rounded-xl p-5 border border-[#2A2A2E] shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
@@ -311,28 +342,16 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                 <div className="p-4 bg-[#201F21] rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 border border-[#2A2A2E]">
                   <div className="flex items-center gap-2 flex-wrap">
                     <kbd className="px-3 py-1.5 rounded bg-[#2A2A2C] text-[#E5E1E4] font-mono text-xs shadow-sm border border-[#434653]/40">
-                      Win
-                    </kbd>
-                    <span className="text-[#8D909F] font-semibold">+</span>
-                    <kbd className="px-3 py-1.5 rounded bg-[#2A2A2C] text-[#E5E1E4] font-mono text-xs shadow-sm border border-[#434653]/40">
-                      Alt
-                    </kbd>
-                    <span className="text-[#8D909F] font-semibold">+</span>
-                    <kbd className="px-4 py-1.5 rounded bg-[#5B8CFF] text-[#001847] font-mono text-xs font-bold shadow-sm">
-                      Space
+                      {hotkey}
                     </kbd>
                   </div>
                   <button
                     type="button"
-                    onClick={handleRecordKey}
-                    className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-[#2A2A2C] hover:bg-[#353437] text-[#E5E1E4] text-xs flex items-center justify-center gap-2 transition-colors border border-[#434653]/40"
+                    disabled
+                    className="w-full sm:w-auto px-3.5 py-1.5 rounded-lg bg-[#2A2A2C] text-[#8D909F] text-xs flex items-center justify-center gap-2 border border-[#434653]/40 cursor-not-allowed opacity-70"
                   >
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        isRecordingKey ? 'bg-[#E8544E] animate-ping' : 'bg-[#F7BD4F]'
-                      }`}
-                    />
-                    <span>{isRecordingKey ? 'Listening for keys...' : 'Click to record new'}</span>
+                    <span>Click to record new</span>
+                    <span className="font-mono text-[9px] bg-[#201F21] px-1 py-0.5 rounded ml-1 text-[#5B8CFF]">Coming Soon</span>
                   </button>
                 </div>
 
@@ -402,8 +421,10 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                   </kbd>
                 </div>
               </section>
+              )}
 
               {/* SECTION 2: Audio Device & Live Calibration */}
+              {activeTab === 'audio-panel' && (
               <section className="flex flex-col bg-[#1B1B1D] rounded-xl p-5 border border-[#2A2A2E] shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
@@ -559,8 +580,10 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                   </div>
                 </div>
               </section>
+              )}
 
               {/* SECTION 3: Whisper Model & Local LLM */}
+              {activeTab === 'model-panel' && (
               <section className="flex flex-col bg-[#1B1B1D] rounded-xl p-5 border border-[#2A2A2E] shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
@@ -578,7 +601,7 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5 mb-4">
                   {/* Tiny */}
                   <div
-                    onClick={() => setSelectedModel('tiny')}
+                    onClick={() => updateSetting('whisperModel', 'tiny')}
                     className={`p-3 rounded-lg flex flex-col justify-between cursor-pointer transition-colors border ${
                       selectedModel === 'tiny'
                         ? 'bg-[#2A2A2C] border-[#5B8CFF]'
@@ -600,11 +623,11 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                     </div>
                   </div>
 
-                  {/* Base */}
+                  {/* Base.en */}
                   <div
-                    onClick={() => setSelectedModel('base')}
+                    onClick={() => updateSetting('whisperModel', 'base.en')}
                     className={`p-3 rounded-lg flex flex-col justify-between cursor-pointer transition-colors border ${
-                      selectedModel === 'base'
+                      selectedModel === 'base.en'
                         ? 'bg-[#2A2A2C] border-[#5B8CFF]'
                         : 'bg-[#201F21] border-[#2A2A2E] hover:bg-[#2A2A2C]'
                     }`}
@@ -624,11 +647,11 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                     </div>
                   </div>
 
-                  {/* Small (Active default) */}
+                  {/* Small.en */}
                   <div
-                    onClick={() => setSelectedModel('small')}
+                    onClick={() => updateSetting('whisperModel', 'small.en')}
                     className={`p-3 rounded-lg flex flex-col justify-between cursor-pointer border shadow-sm ${
-                      selectedModel === 'small'
+                      selectedModel === 'small.en'
                         ? 'bg-[#2A2A2C] border-[#5B8CFF]'
                         : 'bg-[#201F21] border-[#2A2A2E] hover:bg-[#2A2A2C]'
                     }`}
@@ -650,19 +673,19 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                     </div>
                   </div>
 
-                  {/* Turbo v3 */}
+                  {/* Medium.en */}
                   <div
-                    onClick={() => setSelectedModel('turbo')}
+                    onClick={() => updateSetting('whisperModel', 'medium.en')}
                     className={`p-3 rounded-lg flex flex-col justify-between cursor-pointer transition-colors border ${
-                      selectedModel === 'turbo'
+                      selectedModel === 'medium.en'
                         ? 'bg-[#2A2A2C] border-[#5B8CFF]'
                         : 'bg-[#201F21] border-[#2A2A2E] hover:bg-[#2A2A2C]'
                     }`}
                   >
                     <div>
                       <div className="flex justify-between items-center">
-                        <span className="font-semibold text-xs text-[#E5E1E4]">Turbo v3</span>
-                        <span className="font-mono text-[10px] text-[#8D909F]">800MB</span>
+                        <span className="font-semibold text-xs text-[#E5E1E4]">Medium</span>
+                        <span className="font-mono text-[10px] text-[#8D909F]">1.5GB</span>
                       </div>
                       <p className="text-[11px] text-[#8D909F] mt-1 leading-normal">
                         Maximum precision across 99 multi-lingual dialects.
@@ -694,11 +717,14 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
                     <label className="text-xs text-[#C3C6D6]">Formatter Model</label>
                     <div className="sm:col-span-2 relative">
-                      <select className="w-full h-8 pl-3 pr-8 bg-[#1B1B1D] text-[#E5E1E4] text-xs rounded appearance-none cursor-pointer focus:outline-none border border-[#2A2A2E]">
-                        <option>llama3.2:3b - Markdown formatting & Tech Terminology (Active)</option>
-                        <option>mistral:7b-instruct - Detailed syntax cleanup</option>
-                        <option>qwen2.5-coder:1.5b - Code snippet formatting</option>
-                        <option>Disable LLM Post-Processing (Raw transcription only)</option>
+                      <select 
+                        value={ollamaModel}
+                        onChange={(e) => updateSetting('ollamaModel', e.target.value)}
+                        className="w-full h-8 pl-3 pr-8 bg-[#1B1B1D] text-[#E5E1E4] text-xs rounded appearance-none cursor-pointer focus:outline-none border border-[#2A2A2E]">
+                        <option value="">Disable LLM Post-Processing (Raw transcription only)</option>
+                        {ollamaModelsList.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
                       </select>
                       <ChevronDown
                         size={15}
@@ -708,8 +734,10 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                   </div>
                 </div>
               </section>
+              )}
 
               {/* SECTION 4: Zero-Cloud Retention & Data Policy */}
+              {activeTab === 'privacy-panel' && (
               <section className="flex flex-col bg-[#1B1B1D] rounded-xl p-5 border border-[#2A2A2E] shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
@@ -788,6 +816,7 @@ export const Settings: React.FC<SettingsProps> = ({ onNavigate }) => {
                   </button>
                 </div>
               </section>
+              )}
             </div>
           </div>
 

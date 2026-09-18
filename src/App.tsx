@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrayPopup } from './components/TrayPopup';
 import { Settings } from './components/Settings';
 import { Transcripts } from './components/Transcripts';
@@ -8,6 +8,14 @@ import { Volume2, Sliders, Database, Palette } from 'lucide-react';
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ScreenType>('tray');
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.onNavigate((screen: ScreenType) => {
+        setActiveScreen(screen);
+      });
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0E0E10] text-[#E5E1E4] flex flex-col">

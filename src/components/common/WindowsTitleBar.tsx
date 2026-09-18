@@ -51,6 +51,7 @@ export const WindowsTitleBar: React.FC<WindowsTitleBarProps> = ({
           <div className="flex items-center h-10">
             <button
               type="button"
+              onClick={() => window.electronAPI?.minimizeWindow?.()}
               aria-label="Minimize"
               className="w-10 h-10 flex items-center justify-center text-[#8D909F] hover:bg-[#201F21] hover:text-[#E5E1E4] transition-colors"
             >
@@ -58,6 +59,9 @@ export const WindowsTitleBar: React.FC<WindowsTitleBarProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => {
+                // Not fully supported in preload yet, so gracefully do nothing or hide for now
+              }}
               aria-label="Maximize"
               className="w-10 h-10 flex items-center justify-center text-[#8D909F] hover:bg-[#201F21] hover:text-[#E5E1E4] transition-colors"
             >
@@ -65,6 +69,7 @@ export const WindowsTitleBar: React.FC<WindowsTitleBarProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => window.electronAPI?.closeWindow?.()}
               aria-label="Close"
               className="w-11 h-10 flex items-center justify-center text-[#8D909F] hover:bg-[#93000A] hover:text-white transition-colors"
             >
